@@ -7,47 +7,30 @@
     :root { color-scheme: light dark; }
     * { box-sizing: border-box; }
     body {
-      margin: 0;
-      padding: 32px 20px 48px;
+      margin: 0; padding: 32px 20px 48px;
       font: 14px/1.6 -apple-system, "PingFang SC", system-ui, sans-serif;
-      background: #0f1115;
-      color: #e7e9ee;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      background: #0f1115; color: #e7e9ee;
+      display: flex; flex-direction: column; align-items: center;
     }
     .wrap { width: 100%; max-width: 880px; }
     h1 { font-size: 20px; margin: 0 0 4px; }
     .sub { color: #8b909c; margin: 0 0 24px; font-size: 13px; }
 
     .options {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-      gap: 12px;
-      margin-bottom: 20px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+      gap: 12px; margin-bottom: 20px;
     }
-    .opt {
-      background: #181b22;
-      border: 1px solid #262b35;
-      border-radius: 10px;
-      padding: 12px 14px;
-    }
+    .opt { background: #181b22; border: 1px solid #262b35; border-radius: 10px; padding: 12px 14px; }
     .opt label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .opt .desc { color: #6f7682; font-size: 11px; margin-top: 4px; }
-    .opt.sub-opt { transition: opacity .15s; }
-    .opt.sub-opt[hidden] { display: none; }
+    .opt[hidden] { display: none; }
     select, input[type="checkbox"] { accent-color: #e5384a; }
     select {
-      width: 100%;
-      margin-top: 6px;
-      background: #11141a;
-      color: #e7e9ee;
-      border: 1px solid #2c323d;
-      border-radius: 6px;
-      padding: 5px 6px;
+      width: 100%; margin-top: 6px; background: #11141a; color: #e7e9ee;
+      border: 1px solid #2c323d; border-radius: 6px; padding: 5px 6px;
     }
 
-    .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
     button {
       border: 0; border-radius: 8px; padding: 11px 20px;
       font-size: 14px; font-weight: 600; cursor: pointer; color: #fff;
@@ -57,40 +40,39 @@
     #start:not(:disabled):hover { background: #cf2c3d; }
     #pause { background: #3a4150; }
     #stop  { background: #2c323d; }
-    .timer {
-      font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700;
-      letter-spacing: 1px; min-width: 96px;
-    }
+    .timer { font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 700; letter-spacing: 1px; min-width: 96px; }
     .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #e5384a; margin-right: 6px; }
     .rec .dot { animation: blink 1s steps(2, start) infinite; }
     @keyframes blink { to { visibility: hidden; } }
     .status { color: #8b909c; font-size: 13px; }
 
+    /* 画笔工具条 */
+    .drawTools { display: none; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .drawTools.on { display: flex; }
+    .swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #2c323d; cursor: pointer; padding: 0; }
+    .swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #e5384a; }
+    .drawTools .sz { width: 110px; }
+    .drawTools button.mini { background: #3a4150; padding: 7px 12px; font-size: 13px; }
+    .drawTools .penBtn.off { background: #2c323d; opacity: .7; }
+
     .stage { position: relative; width: 100%; line-height: 0; }
-    video#preview {
-      width: 100%; background: #000; border-radius: 12px; border: 1px solid #262b35;
-      display: none;
-    }
+    video#preview { width: 100%; background: #000; border-radius: 12px; border: 1px solid #262b35; display: none; }
     /* 区域框选 */
     .stage.selecting { cursor: crosshair; }
-    #selBox {
-      position: absolute; border: 2px dashed #e5384a;
-      background: rgba(229,56,74,.12); display: none; pointer-events: none;
+    #selBox { position: absolute; border: 2px dashed #e5384a; background: rgba(229,56,74,.12); display: none; pointer-events: none; }
+    /* 画笔层 */
+    #drawSurface {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      display: none; border-radius: 12px;
     }
-    .selHint {
-      display: none; margin: 10px 0 0; gap: 10px; align-items: center; flex-wrap: wrap;
-    }
+    #drawSurface.on { display: block; cursor: crosshair; touch-action: none; }
+    .selHint { display: none; margin: 10px 0 0; gap: 10px; align-items: center; flex-wrap: wrap; }
     .selHint .tip { color: #ffcf6b; font-size: 13px; }
     #confirmRegion { background: #1f9d57; }
     #fullRegion { background: #3a4150; }
 
-    .download {
-      display: none; margin-top: 16px; align-items: center; gap: 14px; flex-wrap: wrap;
-    }
-    .download a {
-      background: #1f9d57; color: #fff; text-decoration: none;
-      padding: 10px 18px; border-radius: 8px; font-weight: 600;
-    }
+    .download { display: none; margin-top: 16px; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .download a { background: #1f9d57; color: #fff; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; }
     .download .size { color: #8b909c; font-size: 12px; }
     .err { color: #ff6b6b; font-size: 13px; margin-top: 10px; min-height: 18px; }
   </style>
@@ -98,22 +80,26 @@
 <body>
   <div class="wrap">
     <h1>🎬 极简录屏 · 录制台</h1>
-    <p class="sub">点「开始录制」后在系统选择器里挑 <b>整个屏幕 / 应用窗口 / 标签页</b>；可叠加摄像头、框选区域、导出 mp4。</p>
+    <p class="sub">屏幕 / 窗口 / 标签页录制，可叠摄像头、框选区域、画笔标注、仅录摄像头，导出 webm / mp4。</p>
 
     <div class="options">
+      <div class="opt">
+        <label><input type="checkbox" id="optCamOnly" /> 仅录摄像头</label>
+        <div class="desc">不录屏幕，全画幅录摄像头（口播/讲解）。</div>
+      </div>
       <div class="opt">
         <label><input type="checkbox" id="optMic" /> 录麦克风</label>
         <div class="desc">叠加你的人声讲解。</div>
       </div>
-      <div class="opt">
+      <div class="opt" id="sysAudioWrap">
         <label><input type="checkbox" id="optSysAudio" checked /> 录系统/标签页声音</label>
         <div class="desc">选择器里记得勾「分享音频」。</div>
       </div>
-      <div class="opt">
+      <div class="opt" id="camWrap">
         <label><input type="checkbox" id="optCam" /> 摄像头画中画</label>
         <div class="desc">露脸讲解，叠在角落。</div>
       </div>
-      <div class="opt sub-opt" id="camPosWrap" hidden>
+      <div class="opt" id="camPosWrap" hidden>
         <label for="optCamPos">摄像头位置</label>
         <select id="optCamPos">
           <option value="br" selected>右下角</option>
@@ -122,9 +108,29 @@
           <option value="tl">左上角</option>
         </select>
       </div>
-      <div class="opt">
+      <div class="opt" id="camSizeWrap" hidden>
+        <label for="optCamSize">摄像头大小</label>
+        <select id="optCamSize">
+          <option value="0.16">小</option>
+          <option value="0.24" selected>中</option>
+          <option value="0.34">大</option>
+        </select>
+      </div>
+      <div class="opt" id="camShapeWrap" hidden>
+        <label for="optCamShape">摄像头形状</label>
+        <select id="optCamShape">
+          <option value="round" selected>圆角矩形</option>
+          <option value="rect">矩形</option>
+          <option value="circle">圆形</option>
+        </select>
+      </div>
+      <div class="opt" id="regionWrap">
         <label><input type="checkbox" id="optRegion" /> 区域录制</label>
         <div class="desc">先框选再录，只录一块。</div>
+      </div>
+      <div class="opt">
+        <label><input type="checkbox" id="optDraw" /> 画笔标注</label>
+        <div class="desc">录制时在预览上画，烧进录像。</div>
       </div>
       <div class="opt">
         <label for="optFormat">导出格式</label>
@@ -159,6 +165,20 @@
       <span class="status" id="status"></span>
     </div>
 
+    <div class="drawTools" id="drawTools">
+      <button class="penBtn mini" id="penToggle">✎ 画笔开</button>
+      <span style="display:flex;gap:6px">
+        <button class="swatch active" data-color="#ff3b30" style="background:#ff3b30"></button>
+        <button class="swatch" data-color="#ffcc00" style="background:#ffcc00"></button>
+        <button class="swatch" data-color="#34c759" style="background:#34c759"></button>
+        <button class="swatch" data-color="#0a84ff" style="background:#0a84ff"></button>
+        <button class="swatch" data-color="#ffffff" style="background:#ffffff"></button>
+      </span>
+      <input type="range" class="sz" id="penSize" min="2" max="20" value="4" />
+      <button class="mini" id="undoStroke">↶ 撤销</button>
+      <button class="mini" id="clearStrokes">🗑 清除</button>
+    </div>
+
     <div class="selHint" id="selHint">
       <span class="tip">在预览里按住拖拽框选要录的区域；不选则录整个画面。</span>
       <button id="confirmRegion">✔ 确认并开始</button>
@@ -168,6 +188,7 @@
     <div class="stage" id="stage">
       <video id="preview" muted playsinline></video>
       <div id="selBox"></div>
+      <canvas id="drawSurface"></canvas>
     </div>
 
     <div class="download" id="dl">
