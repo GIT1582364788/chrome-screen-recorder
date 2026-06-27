@@ -61,6 +61,11 @@
     /* 区域框选 */
     .stage.selecting { cursor: crosshair; }
     #selBox { position: absolute; border: 2px dashed #e5384a; background: rgba(229,56,74,.12); display: none; pointer-events: none; z-index: 2; }
+    #selBox i { position: absolute; width: 10px; height: 10px; background: #e5384a; border: 2px solid #fff; border-radius: 2px; }
+    #selBox i:nth-child(1) { left: -6px; top: -6px; }
+    #selBox i:nth-child(2) { right: -6px; top: -6px; }
+    #selBox i:nth-child(3) { left: -6px; bottom: -6px; }
+    #selBox i:nth-child(4) { right: -6px; bottom: -6px; }
     /* 框选专用透明捕获层：指针事件全交给它，避免 <video> 吞事件 */
     #selOverlay { position: absolute; inset: 0; display: none; cursor: crosshair; touch-action: none; z-index: 3; }
     #selOverlay.on { display: block; }
@@ -94,7 +99,7 @@
   </style>
 </head>
 <body>
-  <div class="langbar"><button id="langToggle">EN</button></div>
+  <div class="langbar"><button id="langToggle" aria-label="switch language">EN</button></div>
   <div class="wrap">
     <h1 data-i18n="app_title">🎬 极简录屏 · 录制台</h1>
     <p class="sub" data-i18n="subtitle">屏幕 / 窗口 / 标签页录制，可叠摄像头、框选区域、画笔标注、仅录摄像头，导出 webm / mp4。</p>
@@ -196,14 +201,14 @@
 
     <div class="drawTools" id="drawTools">
       <button class="penBtn mini" id="penToggle" data-i18n="pen_on">✎ 画笔开</button>
-      <span style="display:flex;gap:6px">
-        <button class="swatch active" data-color="#ff3b30" style="background:#ff3b30"></button>
-        <button class="swatch" data-color="#ffcc00" style="background:#ffcc00"></button>
-        <button class="swatch" data-color="#34c759" style="background:#34c759"></button>
-        <button class="swatch" data-color="#0a84ff" style="background:#0a84ff"></button>
-        <button class="swatch" data-color="#ffffff" style="background:#ffffff"></button>
+      <span style="display:flex;gap:6px" role="group" aria-label="pen color">
+        <button class="swatch active" data-color="#ff3b30" style="background:#ff3b30" aria-label="red"></button>
+        <button class="swatch" data-color="#ffcc00" style="background:#ffcc00" aria-label="yellow"></button>
+        <button class="swatch" data-color="#34c759" style="background:#34c759" aria-label="green"></button>
+        <button class="swatch" data-color="#0a84ff" style="background:#0a84ff" aria-label="blue"></button>
+        <button class="swatch" data-color="#ffffff" style="background:#ffffff" aria-label="white"></button>
       </span>
-      <input type="range" class="sz" id="penSize" min="2" max="20" value="4" />
+      <input type="range" class="sz" id="penSize" min="2" max="20" value="4" aria-label="pen width" />
       <button class="mini" id="undoStroke" data-i18n="undo">↶ 撤销</button>
       <button class="mini" id="clearStrokes" data-i18n="clear">🗑 清除</button>
     </div>
@@ -217,7 +222,7 @@
 
     <div class="stage" id="stage">
       <video id="preview" muted playsinline draggable="false"></video>
-      <div id="selBox"></div>
+      <div id="selBox"><i></i><i></i><i></i><i></i></div>
       <div id="selOverlay"></div>
       <canvas id="drawSurface"></canvas>
     </div>

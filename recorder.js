@@ -35,6 +35,7 @@ let crop = null;                       // 源像素 {x,y,w,h}
 // 画笔
 let strokes = [], curStroke = null, penOn = true, penColor = "#ff3b30", penWidth = 4;
 let dsCtx = null;                      // drawSurface 2D 上下文
+let strokeCache = null, scCtx = null;  // 已完成描线的离屏缓存（避免每帧重绘全部）
 
 let recMime = "video/webm", recExt = "webm";
 let lastUrl = null, timerId = null, startedAt = 0, pausedMs = 0, pauseStart = 0;
@@ -187,17 +188,25 @@ function drawCamPiP() {
   else ctx.strokeRect(x, y, w, h);
 }
 
-// 把画笔描线画到上下文（sx/sy：源坐标 → 目标像素的缩放）
-function paintStrokes(c, sx, sy) {
+// 画单条描线（sx/sy：源坐标 → 目标像素缩放）
+function paintOneStroke(c, st, sx, sy) {
+  if (!st || st.points.length < 1) return;
   c.lineCap = "round"; c.lineJoin = "round";
-  for (const st of strokes.concat(curStroke ? [curStroke] : [])) {
-    if (st.points.length < 1) continue;
-    c.strokeStyle = st.color; c.lineWidth = st.size * sx;
-    c.beginPath();
-    st.points.forEach((p, i) => i ? c.lineTo(p.x * sx, p.y * sy) : c.moveTo(p.x * sx, p.y * sy));
-    if (st.points.length === 1) { const p = st.points[0]; c.lineTo(p.x * sx + 0.1, p.y * sy); }
-    c.stroke();
-  }
+  c.strokeStyle = st.color; c.lineWidth = st.size * sx;
+  c.beginPath();
+  st.points.forEach((p, i) => i ? c.lineTo(p.x * sx, p.y * sy) : c.moveTo(p.x * sx, p.y * sy));
+  if (st.points.length === 1) { const p = st.points[0]; c.lineTo(p.x * sx + 0.1, p.y * sy); }
+  c.stroke();
+}
+function paintStrokes(c, sx, sy) {
+  for (const st of strokes) paintOneStroke(c, st, sx, sy);
+  if (curStroke) paintOneStroke(c, curStroke, sx, sy);
+}
+// 重建缓存（撤销/清除后）
+function rebuildStrokeCache() {
+  if (!scCtx) return;
+  scCtx.clearRect(0, 0, strokeCache.width, strokeCache.height);
+  for (const st of strokes) paintOneStroke(scCtx, st, 1, 1);
 }
 
 // 录像 canvas 一帧
@@ -208,7 +217,10 @@ function drawFrame() {
     ctx.drawImage(screenVideo, crop.x, crop.y, crop.w, crop.h, 0, 0, canvas.width, canvas.height);
     if (camStream && els.optCam.checked) drawCamPiP(); // 跟随复选框实时开关
   }
-  if (els.optDraw.checked && strokes.length) paintStrokes(ctx, 1, 1); // strokes 存源坐标
+  if (els.optDraw.checked) { // 缓存已完成描线 + 仅画当前这一笔
+    if (strokeCache) ctx.drawImage(strokeCache, 0, 0);
+    if (curStroke) paintOneStroke(ctx, curStroke, 1, 1);
+  }
 }
 
 // drawSurface 即时反馈（与录像同步，但用显示尺寸缩放）
@@ -315,19 +327,47 @@ function enterRegionSelection() {
   document.addEventListener("visibilitychange", onSelVisible);
   focusSelf();
 }
+const HANDLE = 14;
+let selMode = "box", selAnchor = null, moveAnchor = null, moveBox0 = null;
+function cornerHit(px, py) {
+  if (!selRectCss || selRectCss.w < 8 || selRectCss.h < 8) return null;
+  const { x, y, w, h } = selRectCss;
+  const cs = { nw: [x, y], ne: [x + w, y], sw: [x, y + h], se: [x + w, y + h] };
+  for (const k in cs) if (Math.hypot(px - cs[k][0], py - cs[k][1]) <= HANDLE) return k;
+  return null;
+}
+function insideBox(px, py) {
+  if (!selRectCss || selRectCss.w < 8) return false;
+  const { x, y, w, h } = selRectCss;
+  return px >= x && px <= x + w && py >= y && py <= y + h;
+}
+function oppositeCorner(k) {
+  const { x, y, w, h } = selRectCss;
+  return { nw: { x: x + w, y: y + h }, ne: { x, y: y + h }, sw: { x: x + w, y }, se: { x, y } }[k];
+}
 function onSelDown(e) {
   e.preventDefault();
   els.selOverlay.setPointerCapture(e.pointerId); // 锁定指针，move/up 必达
   const r = els.selOverlay.getBoundingClientRect();
-  selDragging = true; selStart = { x: e.clientX - r.left, y: e.clientY - r.top };
-  selRectCss = { x: selStart.x, y: selStart.y, w: 0, h: 0 };
-  els.selBox.style.display = "block"; updateSelBox(selStart.x, selStart.y, 0, 0);
+  const px = e.clientX - r.left, py = e.clientY - r.top;
+  selDragging = true;
+  const c = cornerHit(px, py);
+  if (c) { selMode = "box"; selAnchor = oppositeCorner(c); }                 // 拖角调整：以对角为锚
+  else if (insideBox(px, py)) { selMode = "move"; moveAnchor = { x: px, y: py }; moveBox0 = { ...selRectCss }; } // 框内拖动
+  else { selMode = "box"; selAnchor = { x: px, y: py }; selRectCss = { x: px, y: py, w: 0, h: 0 }; }            // 新框
+  els.selBox.style.display = "block";
 }
 function onSelMove(e) {
   if (!selDragging) return;
   const r = els.selOverlay.getBoundingClientRect();
-  const x2 = Math.min(Math.max(e.clientX - r.left, 0), r.width), y2 = Math.min(Math.max(e.clientY - r.top, 0), r.height);
-  updateSelBox(Math.min(selStart.x, x2), Math.min(selStart.y, y2), Math.abs(x2 - selStart.x), Math.abs(y2 - selStart.y));
+  const px = Math.min(Math.max(e.clientX - r.left, 0), r.width), py = Math.min(Math.max(e.clientY - r.top, 0), r.height);
+  if (selMode === "move") {
+    const nx = Math.min(Math.max(moveBox0.x + (px - moveAnchor.x), 0), r.width - moveBox0.w);
+    const ny = Math.min(Math.max(moveBox0.y + (py - moveAnchor.y), 0), r.height - moveBox0.h);
+    updateSelBox(nx, ny, moveBox0.w, moveBox0.h);
+  } else {
+    updateSelBox(Math.min(selAnchor.x, px), Math.min(selAnchor.y, py), Math.abs(px - selAnchor.x), Math.abs(py - selAnchor.y));
+  }
 }
 function onSelUp(e) {
   if (!selDragging) return;
@@ -413,7 +453,7 @@ function onPenMove(e) {
 }
 function onPenUp() {
   if (!curStroke) return;
-  if (curStroke.points.length) strokes.push(curStroke);
+  if (curStroke.points.length) { strokes.push(curStroke); if (scCtx) paintOneStroke(scCtx, curStroke, 1, 1); }
   curStroke = null;
   repaintSurface();
 }
@@ -425,8 +465,8 @@ els.penToggle.addEventListener("click", () => {
   els.drawSurface.style.pointerEvents = penOn ? "auto" : "none";
 });
 els.penSize.addEventListener("input", () => { penWidth = Number(els.penSize.value); });
-els.undoStroke.addEventListener("click", () => { strokes.pop(); repaintSurface(); });
-els.clearStrokes.addEventListener("click", () => { strokes = []; repaintSurface(); });
+els.undoStroke.addEventListener("click", () => { strokes.pop(); rebuildStrokeCache(); repaintSurface(); });
+els.clearStrokes.addEventListener("click", () => { strokes = []; rebuildStrokeCache(); repaintSurface(); });
 document.querySelectorAll(".swatch").forEach((s) => s.addEventListener("click", () => {
   penColor = s.dataset.color;
   document.querySelectorAll(".swatch").forEach((x) => x.classList.remove("active"));
@@ -472,6 +512,11 @@ function beginRecording(fps) {
     if (isCamOnly) { canvas.width = even(camVideo.videoWidth || 1280); canvas.height = even(camVideo.videoHeight || 720); }
     else { canvas.width = even(crop.w); canvas.height = even(crop.h); }
     ctx = canvas.getContext("2d", { alpha: false });
+    if (els.optDraw.checked) {
+      strokeCache = document.createElement("canvas");
+      strokeCache.width = canvas.width; strokeCache.height = canvas.height;
+      scCtx = strokeCache.getContext("2d");
+    }
     drawFrame();
     drawWorker = makeDrawWorker(fps);
     drawWorker.onmessage = drawFrame;
@@ -536,7 +581,7 @@ function stopStreams() {
 }
 function cleanup() {
   stopStreams();
-  ctx = null; canvas = null; screenVideo = camVideo = null;
+  ctx = null; canvas = null; strokeCache = scCtx = null; screenVideo = camVideo = null;
   displayStream = micStream = camStream = mixedStream = null;
   els.start.disabled = false;
 }
@@ -562,7 +607,7 @@ function finalize() {
   els.status.textContent = t("st_done");
   els.start.disabled = false; els.pause.disabled = true; els.stop.disabled = true;
   els.pause.textContent = t("btn_pause"); els.start.innerHTML = t("btn_start");
-  ctx = null; canvas = null; screenVideo = camVideo = null;
+  ctx = null; canvas = null; strokeCache = scCtx = null; screenVideo = camVideo = null;
   displayStream = micStream = camStream = mixedStream = null; recorder = null;
 }
 
