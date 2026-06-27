@@ -5,7 +5,7 @@ const els = {
   start: $("start"), pause: $("pause"), stop: $("stop"),
   timer: $("timer"), status: $("status"), err: $("err"),
   stage: $("stage"), preview: $("preview"), selBox: $("selBox"), selOverlay: $("selOverlay"), drawSurface: $("drawSurface"),
-  selHint: $("selHint"), confirmRegion: $("confirmRegion"), fullRegion: $("fullRegion"),
+  selHint: $("selHint"), confirmRegion: $("confirmRegion"), fullRegion: $("fullRegion"), cancelRegion: $("cancelRegion"),
   dl: $("dl"), dlLink: $("dlLink"), dlSize: $("dlSize"),
   optCamOnly: $("optCamOnly"), optMic: $("optMic"), optSysAudio: $("optSysAudio"),
   optCam: $("optCam"), optCamPos: $("optCamPos"), optCamSize: $("optCamSize"), optCamShape: $("optCamShape"),
@@ -262,8 +262,20 @@ function mkVideo(stream) {
 // ---- 区域框选 ----
 // 用透明 overlay + Pointer Capture 接管框选：<video> 不再当事件目标，
 // 按下后即便指针移出预览也能持续收到 move/up，框一定拉得开。
-let selDragging = false, selStart = null, selRectCss = null;
+let selDragging = false, selStart = null, selRectCss = null, regionSelecting = false;
+
+// 选源（尤其选了别的标签页/整屏）后焦点会跑到被共享处，把录制台拉回前台才能画框
+async function focusSelf() {
+  try {
+    const tab = await chrome.tabs.getCurrent();
+    if (tab) { await chrome.windows.update(tab.windowId, { focused: true }); await chrome.tabs.update(tab.id, { active: true }); }
+  } catch (_) { try { window.focus(); } catch (_) {} }
+}
+// 标签页切回来时预览可能被暂停，恢复播放
+function onSelVisible() { if (regionSelecting && document.visibilityState === "visible") els.preview.play().catch(() => {}); }
+
 function enterRegionSelection() {
+  regionSelecting = true;
   els.preview.srcObject = new MediaStream(displayStream.getVideoTracks());
   els.preview.style.display = "block"; els.preview.muted = true; els.preview.play().catch(() => {});
   els.stage.classList.add("selecting");
@@ -274,6 +286,8 @@ function enterRegionSelection() {
   els.selOverlay.addEventListener("pointerdown", onSelDown);
   els.selOverlay.addEventListener("pointermove", onSelMove);
   els.selOverlay.addEventListener("pointerup", onSelUp);
+  document.addEventListener("visibilitychange", onSelVisible);
+  focusSelf();
 }
 function onSelDown(e) {
   e.preventDefault();
@@ -306,18 +320,30 @@ function updateSelBox(x, y, w, h) {
   els.selBox.style.width = w + "px"; els.selBox.style.height = h + "px";
 }
 function exitRegionSelection() {
+  regionSelecting = false; selDragging = false;
   els.stage.classList.remove("selecting");
   els.selOverlay.classList.remove("on");
   els.selHint.style.display = "none"; els.selBox.style.display = "none";
   els.selOverlay.removeEventListener("pointerdown", onSelDown);
   els.selOverlay.removeEventListener("pointermove", onSelMove);
   els.selOverlay.removeEventListener("pointerup", onSelUp);
+  document.removeEventListener("visibilitychange", onSelVisible);
+}
+// 取消框选：停止已获取的捕获，回到空闲
+function cancelSelection() {
+  exitRegionSelection();
+  els.preview.style.display = "none"; els.preview.srcObject = null;
+  cleanup();
+  els.status.textContent = "已取消";
 }
 els.confirmRegion.addEventListener("click", () => { exitRegionSelection(); beginRecording(Number(els.optFps.value)); });
 els.fullRegion.addEventListener("click", () => {
   crop = { x: 0, y: 0, w: screenVideo.videoWidth, h: screenVideo.videoHeight };
   exitRegionSelection(); beginRecording(Number(els.optFps.value));
 });
+els.cancelRegion.addEventListener("click", cancelSelection);
+// 框选阶段取消勾选「区域录制」= 中止
+els.optRegion.addEventListener("change", () => { if (regionSelecting && !els.optRegion.checked) cancelSelection(); });
 
 // ---- 画笔层 ----
 function sizeDrawSurface() {
