@@ -16,13 +16,13 @@
       flex-direction: column;
       align-items: center;
     }
-    .wrap { width: 100%; max-width: 860px; }
+    .wrap { width: 100%; max-width: 880px; }
     h1 { font-size: 20px; margin: 0 0 4px; }
     .sub { color: #8b909c; margin: 0 0 24px; font-size: 13px; }
 
     .options {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
       gap: 12px;
       margin-bottom: 20px;
     }
@@ -34,6 +34,8 @@
     }
     .opt label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
     .opt .desc { color: #6f7682; font-size: 11px; margin-top: 4px; }
+    .opt.sub-opt { transition: opacity .15s; }
+    .opt.sub-opt[hidden] { display: none; }
     select, input[type="checkbox"] { accent-color: #e5384a; }
     select {
       width: 100%;
@@ -64,10 +66,24 @@
     @keyframes blink { to { visibility: hidden; } }
     .status { color: #8b909c; font-size: 13px; }
 
-    video {
+    .stage { position: relative; width: 100%; line-height: 0; }
+    video#preview {
       width: 100%; background: #000; border-radius: 12px; border: 1px solid #262b35;
       display: none;
     }
+    /* 区域框选 */
+    .stage.selecting { cursor: crosshair; }
+    #selBox {
+      position: absolute; border: 2px dashed #e5384a;
+      background: rgba(229,56,74,.12); display: none; pointer-events: none;
+    }
+    .selHint {
+      display: none; margin: 10px 0 0; gap: 10px; align-items: center; flex-wrap: wrap;
+    }
+    .selHint .tip { color: #ffcf6b; font-size: 13px; }
+    #confirmRegion { background: #1f9d57; }
+    #fullRegion { background: #3a4150; }
+
     .download {
       display: none; margin-top: 16px; align-items: center; gap: 14px; flex-wrap: wrap;
     }
@@ -82,22 +98,46 @@
 <body>
   <div class="wrap">
     <h1>🎬 极简录屏 · 录制台</h1>
-    <p class="sub">点「开始录制」后在弹出的系统选择器里挑选 <b>整个屏幕 / 应用窗口 / 浏览器标签页</b>。</p>
+    <p class="sub">点「开始录制」后在系统选择器里挑 <b>整个屏幕 / 应用窗口 / 标签页</b>；可叠加摄像头、框选区域、导出 mp4。</p>
 
     <div class="options">
       <div class="opt">
         <label><input type="checkbox" id="optMic" /> 录麦克风</label>
-        <div class="desc">叠加你的人声讲解（首次需授权麦克风）。</div>
+        <div class="desc">叠加你的人声讲解。</div>
       </div>
       <div class="opt">
         <label><input type="checkbox" id="optSysAudio" checked /> 录系统/标签页声音</label>
-        <div class="desc">在选择器里记得勾「分享音频」。</div>
+        <div class="desc">选择器里记得勾「分享音频」。</div>
+      </div>
+      <div class="opt">
+        <label><input type="checkbox" id="optCam" /> 摄像头画中画</label>
+        <div class="desc">露脸讲解，叠在角落。</div>
+      </div>
+      <div class="opt sub-opt" id="camPosWrap" hidden>
+        <label for="optCamPos">摄像头位置</label>
+        <select id="optCamPos">
+          <option value="br" selected>右下角</option>
+          <option value="bl">左下角</option>
+          <option value="tr">右上角</option>
+          <option value="tl">左上角</option>
+        </select>
+      </div>
+      <div class="opt">
+        <label><input type="checkbox" id="optRegion" /> 区域录制</label>
+        <div class="desc">先框选再录，只录一块。</div>
+      </div>
+      <div class="opt">
+        <label for="optFormat">导出格式</label>
+        <select id="optFormat">
+          <option value="webm" selected>webm（兼容性最好）</option>
+          <option value="mp4">mp4（需较新 Chrome）</option>
+        </select>
       </div>
       <div class="opt">
         <label for="optFps">帧率</label>
         <select id="optFps">
-          <option value="30">30 fps（流畅，默认）</option>
-          <option value="60">60 fps（更顺，文件大）</option>
+          <option value="30">30 fps（默认）</option>
+          <option value="60">60 fps（更顺）</option>
           <option value="15">15 fps（省空间）</option>
         </select>
       </div>
@@ -119,7 +159,16 @@
       <span class="status" id="status"></span>
     </div>
 
-    <video id="preview" muted playsinline></video>
+    <div class="selHint" id="selHint">
+      <span class="tip">在预览里按住拖拽框选要录的区域；不选则录整个画面。</span>
+      <button id="confirmRegion">✔ 确认并开始</button>
+      <button id="fullRegion">录整个画面</button>
+    </div>
+
+    <div class="stage" id="stage">
+      <video id="preview" muted playsinline></video>
+      <div id="selBox"></div>
+    </div>
 
     <div class="download" id="dl">
       <a id="dlLink" download>⬇ 下载录像</a>
