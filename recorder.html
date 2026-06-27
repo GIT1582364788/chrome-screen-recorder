@@ -60,7 +60,10 @@
     video#preview { width: 100%; background: #000; border-radius: 12px; border: 1px solid #262b35; display: none; -webkit-user-drag: none; user-select: none; }
     /* 区域框选 */
     .stage.selecting { cursor: crosshair; }
-    #selBox { position: absolute; border: 2px dashed #e5384a; background: rgba(229,56,74,.12); display: none; pointer-events: none; }
+    #selBox { position: absolute; border: 2px dashed #e5384a; background: rgba(229,56,74,.12); display: none; pointer-events: none; z-index: 2; }
+    /* 框选专用透明捕获层：指针事件全交给它，避免 <video> 吞事件 */
+    #selOverlay { position: absolute; inset: 0; display: none; cursor: crosshair; touch-action: none; z-index: 3; }
+    #selOverlay.on { display: block; }
     /* 画笔层 */
     #drawSurface {
       position: absolute; inset: 0; width: 100%; height: 100%;
@@ -189,6 +192,7 @@
     <div class="stage" id="stage">
       <video id="preview" muted playsinline draggable="false"></video>
       <div id="selBox"></div>
+      <div id="selOverlay"></div>
       <canvas id="drawSurface"></canvas>
     </div>
 

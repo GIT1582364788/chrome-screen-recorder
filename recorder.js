@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const els = {
   start: $("start"), pause: $("pause"), stop: $("stop"),
   timer: $("timer"), status: $("status"), err: $("err"),
-  stage: $("stage"), preview: $("preview"), selBox: $("selBox"), drawSurface: $("drawSurface"),
+  stage: $("stage"), preview: $("preview"), selBox: $("selBox"), selOverlay: $("selOverlay"), drawSurface: $("drawSurface"),
   selHint: $("selHint"), confirmRegion: $("confirmRegion"), fullRegion: $("fullRegion"),
   dl: $("dl"), dlLink: $("dlLink"), dlSize: $("dlSize"),
   optCamOnly: $("optCamOnly"), optMic: $("optMic"), optSysAudio: $("optSysAudio"),
@@ -260,34 +260,40 @@ function mkVideo(stream) {
 }
 
 // ---- 区域框选 ----
+// 用透明 overlay + Pointer Capture 接管框选：<video> 不再当事件目标，
+// 按下后即便指针移出预览也能持续收到 move/up，框一定拉得开。
 let selDragging = false, selStart = null, selRectCss = null;
 function enterRegionSelection() {
   els.preview.srcObject = new MediaStream(displayStream.getVideoTracks());
   els.preview.style.display = "block"; els.preview.muted = true; els.preview.play().catch(() => {});
   els.stage.classList.add("selecting");
+  els.selOverlay.classList.add("on");
   els.selHint.style.display = "flex";
-  els.status.textContent = "请框选区域";
+  els.status.textContent = "请在预览里按住拖拽框选";
   els.start.disabled = true;
-  els.stage.addEventListener("mousedown", onSelDown);
-  window.addEventListener("mousemove", onSelMove);
-  window.addEventListener("mouseup", onSelUp);
+  els.selOverlay.addEventListener("pointerdown", onSelDown);
+  els.selOverlay.addEventListener("pointermove", onSelMove);
+  els.selOverlay.addEventListener("pointerup", onSelUp);
 }
 function onSelDown(e) {
-  e.preventDefault(); // 阻止 <video> 原生拖拽接管鼠标，否则框拉不开
-  const r = els.preview.getBoundingClientRect();
+  e.preventDefault();
+  els.selOverlay.setPointerCapture(e.pointerId); // 锁定指针，move/up 必达
+  const r = els.selOverlay.getBoundingClientRect();
   selDragging = true; selStart = { x: e.clientX - r.left, y: e.clientY - r.top };
+  selRectCss = { x: selStart.x, y: selStart.y, w: 0, h: 0 };
   els.selBox.style.display = "block"; updateSelBox(selStart.x, selStart.y, 0, 0);
 }
 function onSelMove(e) {
   if (!selDragging) return;
-  const r = els.preview.getBoundingClientRect();
+  const r = els.selOverlay.getBoundingClientRect();
   const x2 = Math.min(Math.max(e.clientX - r.left, 0), r.width), y2 = Math.min(Math.max(e.clientY - r.top, 0), r.height);
   updateSelBox(Math.min(selStart.x, x2), Math.min(selStart.y, y2), Math.abs(x2 - selStart.x), Math.abs(y2 - selStart.y));
 }
-function onSelUp() {
+function onSelUp(e) {
   if (!selDragging) return;
   selDragging = false;
-  const r = els.preview.getBoundingClientRect();
+  try { els.selOverlay.releasePointerCapture(e.pointerId); } catch (_) {}
+  const r = els.selOverlay.getBoundingClientRect();
   if (selRectCss && selRectCss.w > 8 && selRectCss.h > 8) {
     const sx = screenVideo.videoWidth / r.width, sy = screenVideo.videoHeight / r.height;
     crop = { x: Math.round(selRectCss.x * sx), y: Math.round(selRectCss.y * sy), w: Math.round(selRectCss.w * sx), h: Math.round(selRectCss.h * sy) };
@@ -301,10 +307,11 @@ function updateSelBox(x, y, w, h) {
 }
 function exitRegionSelection() {
   els.stage.classList.remove("selecting");
+  els.selOverlay.classList.remove("on");
   els.selHint.style.display = "none"; els.selBox.style.display = "none";
-  els.stage.removeEventListener("mousedown", onSelDown);
-  window.removeEventListener("mousemove", onSelMove);
-  window.removeEventListener("mouseup", onSelUp);
+  els.selOverlay.removeEventListener("pointerdown", onSelDown);
+  els.selOverlay.removeEventListener("pointermove", onSelMove);
+  els.selOverlay.removeEventListener("pointerup", onSelUp);
 }
 els.confirmRegion.addEventListener("click", () => { exitRegionSelection(); beginRecording(Number(els.optFps.value)); });
 els.fullRegion.addEventListener("click", () => {
