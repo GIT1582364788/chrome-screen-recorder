@@ -6,7 +6,7 @@ const els = {
   timer: $("timer"), status: $("status"), err: $("err"),
   stage: $("stage"), preview: $("preview"), selBox: $("selBox"), selOverlay: $("selOverlay"), drawSurface: $("drawSurface"),
   selHint: $("selHint"), confirmRegion: $("confirmRegion"), fullRegion: $("fullRegion"), cancelRegion: $("cancelRegion"),
-  dl: $("dl"), dlLink: $("dlLink"), dlSize: $("dlSize"),
+  dl: $("dl"), dlLink: $("dlLink"), dlSize: $("dlSize"), discardRec: $("discardRec"),
   optCamOnly: $("optCamOnly"), optMic: $("optMic"), optSysAudio: $("optSysAudio"),
   optCam: $("optCam"), optCamPos: $("optCamPos"), optCamSize: $("optCamSize"), optCamShape: $("optCamShape"),
   optRegion: $("optRegion"), optDraw: $("optDraw"), optFormat: $("optFormat"),
@@ -512,6 +512,16 @@ function finalize() {
 els.start.addEventListener("click", start);
 els.pause.addEventListener("click", togglePause);
 els.stop.addEventListener("click", stop);
+
+// 丢弃录像：撤销 blob、清掉预览与下载区，不下载直接弃录
+els.discardRec.addEventListener("click", () => {
+  if (lastUrl) { URL.revokeObjectURL(lastUrl); lastUrl = null; }
+  chunks = [];
+  els.preview.pause(); els.preview.removeAttribute("src"); els.preview.load();
+  els.preview.controls = false; els.preview.style.display = "none";
+  els.dl.style.display = "none";
+  els.status.textContent = "已丢弃";
+});
 
 window.addEventListener("beforeunload", (e) => {
   if (recorder && recorder.state !== "inactive") { e.preventDefault(); e.returnValue = ""; }

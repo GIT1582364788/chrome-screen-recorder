@@ -78,6 +78,7 @@
 
     .download { display: none; margin-top: 16px; align-items: center; gap: 14px; flex-wrap: wrap; }
     .download a { background: #1f9d57; color: #fff; text-decoration: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; }
+    #discardRec { background: #2c323d; padding: 10px 18px; }
     .download .size { color: #8b909c; font-size: 12px; }
     .err { color: #ff6b6b; font-size: 13px; margin-top: 10px; min-height: 18px; }
   </style>
@@ -200,6 +201,7 @@
 
     <div class="download" id="dl">
       <a id="dlLink" download>⬇ 下载录像</a>
+      <button id="discardRec">✖ 丢弃</button>
       <span class="size" id="dlSize"></span>
       <span class="status">已生成预览，可在上方播放器回放。</span>
     </div>
