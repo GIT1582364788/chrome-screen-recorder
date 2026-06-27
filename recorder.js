@@ -53,7 +53,13 @@ function refreshOpts() {
   els.camShapeWrap.hidden = !showCamSub;
 }
 els.optCamOnly.addEventListener("change", refreshOpts);
-els.optCam.addEventListener("change", refreshOpts);
+els.optCam.addEventListener("change", () => {
+  refreshOpts();
+  // 录制中切换：同步开/关摄像头轨道（顺带控制摄像头指示灯）
+  if (recorder && camStream && !isCamOnly) {
+    camStream.getVideoTracks().forEach((t) => { t.enabled = els.optCam.checked; });
+  }
+});
 
 function pickMime(format) {
   const find = (l) => l.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
@@ -159,7 +165,7 @@ function drawFrame() {
   if (isCamOnly) drawCover(ctx, camVideo, 0, 0, canvas.width, canvas.height);
   else {
     ctx.drawImage(screenVideo, crop.x, crop.y, crop.w, crop.h, 0, 0, canvas.width, canvas.height);
-    if (camStream) drawCamPiP();
+    if (camStream && els.optCam.checked) drawCamPiP(); // 跟随复选框实时开关
   }
   if (els.optDraw.checked && strokes.length) paintStrokes(ctx, 1, 1); // strokes 存源坐标
 }
@@ -251,6 +257,7 @@ function enterRegionSelection() {
   window.addEventListener("mouseup", onSelUp);
 }
 function onSelDown(e) {
+  e.preventDefault(); // 阻止 <video> 原生拖拽接管鼠标，否则框拉不开
   const r = els.preview.getBoundingClientRect();
   selDragging = true; selStart = { x: e.clientX - r.left, y: e.clientY - r.top };
   els.selBox.style.display = "block"; updateSelBox(selStart.x, selStart.y, 0, 0);

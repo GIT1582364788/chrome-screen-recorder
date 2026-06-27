@@ -56,7 +56,8 @@
     .drawTools .penBtn.off { background: #2c323d; opacity: .7; }
 
     .stage { position: relative; width: 100%; line-height: 0; }
-    video#preview { width: 100%; background: #000; border-radius: 12px; border: 1px solid #262b35; display: none; }
+    .stage.selecting { user-select: none; }
+    video#preview { width: 100%; background: #000; border-radius: 12px; border: 1px solid #262b35; display: none; -webkit-user-drag: none; user-select: none; }
     /* 区域框选 */
     .stage.selecting { cursor: crosshair; }
     #selBox { position: absolute; border: 2px dashed #e5384a; background: rgba(229,56,74,.12); display: none; pointer-events: none; }
@@ -186,7 +187,7 @@
     </div>
 
     <div class="stage" id="stage">
-      <video id="preview" muted playsinline></video>
+      <video id="preview" muted playsinline draggable="false"></video>
       <div id="selBox"></div>
       <canvas id="drawSurface"></canvas>
     </div>
