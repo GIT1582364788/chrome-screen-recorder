@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "极简录屏",
+  "version": "1.0.0",
+  "description": "一键录制屏幕 / 窗口 / 标签页，支持系统声音与麦克风，录完即时回放并下载 webm。",
+  "permissions": ["tabs"],
+  "action": {
+    "default_title": "极简录屏",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

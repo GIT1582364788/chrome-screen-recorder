@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      width: 240px;
+      margin: 0;
+      padding: 16px;
+      font: 13px/1.5 -apple-system, "PingFang SC", system-ui, sans-serif;
+    }
+    h1 { font-size: 14px; margin: 0 0 4px; }
+    p { margin: 0 0 14px; color: #888; font-size: 12px; }
+    button {
+      width: 100%;
+      padding: 10px;
+      border: 0;
+      border-radius: 8px;
+      background: #e5384a;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #cf2c3d; }
+    .hint { margin-top: 10px; font-size: 11px; color: #aaa; }
+  </style>
+</head>
+<body>
+  <h1>🎬 极简录屏</h1>
+  <p>录制屏幕 / 窗口 / 标签页，含声音。</p>
+  <button id="open">打开录制台</button>
+  <div class="hint">录制在独立标签页进行，关闭弹窗不会中断。</div>
+  <script src="popup.js"></script>
+</body>
+</html>
