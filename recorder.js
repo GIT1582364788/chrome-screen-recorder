@@ -53,13 +53,29 @@ function refreshOpts() {
   els.camShapeWrap.hidden = !showCamSub;
 }
 els.optCamOnly.addEventListener("change", refreshOpts);
-els.optCam.addEventListener("change", () => {
+
+// 摄像头中途热插拔：录制中勾上当场申请并开始画，取消则停止释放（关指示灯）
+let camBusy = false;
+async function onCamToggle() {
   refreshOpts();
-  // 录制中切换：同步开/关摄像头轨道（顺带控制摄像头指示灯）
-  if (recorder && camStream && !isCamOnly) {
-    camStream.getVideoTracks().forEach((t) => { t.enabled = els.optCam.checked; });
+  if (!recorder || isCamOnly || camBusy) return;
+  if (els.optCam.checked) {
+    if (camStream) return;
+    camBusy = true;
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+      camVideo = mkVideo(camStream);
+      await camVideo.play().catch(() => {});
+    } catch (e) {
+      setError("摄像头获取失败：" + (e && e.message ? e.message : e));
+      els.optCam.checked = false; refreshOpts();
+    } finally { camBusy = false; }
+  } else if (camStream) {
+    camStream.getTracks().forEach((t) => t.stop());
+    camStream = null; camVideo = null;
   }
-});
+}
+els.optCam.addEventListener("change", onCamToggle);
 
 function pickMime(format) {
   const find = (l) => l.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t));
@@ -360,7 +376,8 @@ document.querySelectorAll(".swatch").forEach((s) => s.addEventListener("click", 
 
 // ---- 开始录制 ----
 function beginRecording(fps) {
-  useCanvas = els.optDraw.checked || (isCamOnly ? false : (!!camStream || els.optRegion.checked));
+  // 屏幕录制一律走 canvas，便于中途插入摄像头/画笔；仅录摄像头无画笔时直通
+  useCanvas = isCamOnly ? els.optDraw.checked : true;
 
   if (useCanvas) {
     canvas = document.createElement("canvas");
