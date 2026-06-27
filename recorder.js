@@ -10,12 +10,19 @@ const els = {
   optCamOnly: $("optCamOnly"), optMic: $("optMic"), optSysAudio: $("optSysAudio"),
   optCam: $("optCam"), optCamPos: $("optCamPos"), optCamSize: $("optCamSize"), optCamShape: $("optCamShape"),
   optRegion: $("optRegion"), optDraw: $("optDraw"), optFormat: $("optFormat"),
+  optHotInsert: $("optHotInsert"), optCountdown: $("optCountdown"),
   optFps: $("optFps"), optQuality: $("optQuality"),
+  countdown: $("countdown"), countNum: $("countNum"),
   sysAudioWrap: $("sysAudioWrap"), camWrap: $("camWrap"), regionWrap: $("regionWrap"),
   camPosWrap: $("camPosWrap"), camSizeWrap: $("camSizeWrap"), camShapeWrap: $("camShapeWrap"),
   drawTools: $("drawTools"), penToggle: $("penToggle"), penSize: $("penSize"),
-  undoStroke: $("undoStroke"), clearStrokes: $("clearStrokes"),
+  undoStroke: $("undoStroke"), clearStrokes: $("clearStrokes"), langToggle: $("langToggle"),
 };
+
+// 语言切换
+function applyLang() { applyI18n(); els.langToggle.textContent = t("lang_switch"); }
+els.langToggle.addEventListener("click", () => { setLang(getLang() === "zh" ? "en" : "zh"); applyLang(); });
+applyLang();
 
 let recorder = null, chunks = [];
 let displayStream = null, micStream = null, camStream = null, mixedStream = null, audioCtx = null;
@@ -50,7 +57,7 @@ function tick() {
     // 录像全在内存里，超大/超长时一次性提醒，避免页面崩溃
     if (!warnedBig && (recordedBytes > 3 * 1024 ** 3 || Date.now() - startedAt - pausedMs > 60 * 60 * 1000)) {
       warnedBig = true;
-      setError("录制已很大（录像暂存在内存中），建议尽快停止保存，超长录制可分多段。");
+      setError(t("err_big_warn"));
     }
   }
 }
@@ -73,6 +80,10 @@ let camBusy = false;
 async function onCamToggle() {
   refreshOpts();
   if (!recorder || isCamOnly || camBusy) return;
+  if (els.optCam.checked && !useCanvas) { // 直通录制无 canvas，无法中途叠加
+    setError(t("err_no_hotinsert"));
+    els.optCam.checked = false; refreshOpts(); return;
+  }
   if (els.optCam.checked) {
     if (camStream) return;
     camBusy = true;
@@ -81,7 +92,7 @@ async function onCamToggle() {
       camVideo = mkVideo(camStream);
       await camVideo.play().catch(() => {});
     } catch (e) {
-      setError("摄像头获取失败：" + (e && e.message ? e.message : e));
+      setError(t("err_get_cam", e && e.message ? e.message : e));
       els.optCam.checked = false; refreshOpts();
     } finally { camBusy = false; }
   } else if (camStream) {
@@ -96,7 +107,7 @@ function pickMime(format) {
   if (format === "mp4") {
     const t = find(["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1,opus", "video/mp4"]);
     if (t) return { mime: t, ext: "mp4" };
-    setError("当前 Chrome 不支持直接录 mp4，已回退 webm（可后续用 ffmpeg 转）。");
+    setError(window.t("err_mp4_fallback"));
   }
   const w = find(["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]);
   return { mime: w || "video/webm", ext: "webm" };
@@ -224,15 +235,15 @@ async function start() {
       camStream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: fps } }, audio: false,
       });
-    } catch (e) { setError("摄像头获取失败：" + (e && e.message ? e.message : e)); cleanup(); return; }
+    } catch (e) { setError(t("err_get_cam", e && e.message ? e.message : e)); cleanup(); return; }
     if (els.optMic.checked) {
       try { micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-      catch (e) { setError("麦克风获取失败（继续无麦）：" + (e && e.message ? e.message : e)); }
+      catch (e) { setError(t("err_get_mic_continue", e && e.message ? e.message : e)); }
     }
     camVideo = mkVideo(camStream);
     await camVideo.play().catch(() => {});
     crop = null;
-    beginRecording(fps);
+    beginWithCountdown(fps);
     return;
   }
 
@@ -242,17 +253,17 @@ async function start() {
       video: { frameRate: { ideal: fps, max: fps } }, audio: els.optSysAudio.checked,
     });
   } catch (e) {
-    if (e && e.name === "NotAllowedError") setError("已取消选择，未开始录制。");
-    else setError("无法获取屏幕：" + (e && e.message ? e.message : e));
+    if (e && e.name === "NotAllowedError") setError(t("err_cancel_pick"));
+    else setError(t("err_get_screen", e && e.message ? e.message : e));
     cleanup(); return;
   }
   if (els.optCam.checked) {
     try { camStream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false }); }
-    catch (e) { setError("摄像头获取失败（继续无摄像头）：" + (e && e.message ? e.message : e)); }
+    catch (e) { setError(t("err_get_cam_continue", e && e.message ? e.message : e)); }
   }
   if (els.optMic.checked) {
     try { micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-    catch (e) { setError("麦克风获取失败（继续无麦）：" + (e && e.message ? e.message : e)); }
+    catch (e) { setError(t("err_get_mic_continue", e && e.message ? e.message : e)); }
   }
 
   screenVideo = mkVideo(new MediaStream(displayStream.getVideoTracks()));
@@ -265,7 +276,7 @@ async function start() {
 
   crop = { x: 0, y: 0, w: screenVideo.videoWidth || 1920, h: screenVideo.videoHeight || 1080 };
   if (els.optRegion.checked) enterRegionSelection();
-  else beginRecording(fps);
+  else beginWithCountdown(fps);
 }
 
 function mkVideo(stream) {
@@ -296,7 +307,7 @@ function enterRegionSelection() {
   els.stage.classList.add("selecting");
   els.selOverlay.classList.add("on");
   els.selHint.style.display = "flex";
-  els.status.textContent = "请在预览里按住拖拽框选";
+  els.status.textContent = t("st_select_region");
   els.start.disabled = true;
   els.selOverlay.addEventListener("pointerdown", onSelDown);
   els.selOverlay.addEventListener("pointermove", onSelMove);
@@ -326,7 +337,7 @@ function onSelUp(e) {
   if (selRectCss && selRectCss.w > 8 && selRectCss.h > 8) {
     const sx = screenVideo.videoWidth / r.width, sy = screenVideo.videoHeight / r.height;
     crop = { x: Math.round(selRectCss.x * sx), y: Math.round(selRectCss.y * sy), w: Math.round(selRectCss.w * sx), h: Math.round(selRectCss.h * sy) };
-    els.status.textContent = `已选 ${crop.w}×${crop.h}，点「确认并开始」`;
+    els.status.textContent = t("st_selected", `${crop.w}×${crop.h}`);
   }
 }
 function updateSelBox(x, y, w, h) {
@@ -349,12 +360,12 @@ function cancelSelection() {
   exitRegionSelection();
   els.preview.style.display = "none"; els.preview.srcObject = null;
   cleanup();
-  els.status.textContent = "已取消";
+  els.status.textContent = t("st_canceled");
 }
-els.confirmRegion.addEventListener("click", () => { exitRegionSelection(); beginRecording(Number(els.optFps.value)); });
+els.confirmRegion.addEventListener("click", () => { exitRegionSelection(); beginWithCountdown(Number(els.optFps.value)); });
 els.fullRegion.addEventListener("click", () => {
   crop = { x: 0, y: 0, w: screenVideo.videoWidth, h: screenVideo.videoHeight };
-  exitRegionSelection(); beginRecording(Number(els.optFps.value));
+  exitRegionSelection(); beginWithCountdown(Number(els.optFps.value));
 });
 els.cancelRegion.addEventListener("click", cancelSelection);
 // 框选阶段取消勾选「区域录制」= 中止
@@ -408,7 +419,7 @@ function onPenUp() {
 }
 els.penToggle.addEventListener("click", () => {
   penOn = !penOn;
-  els.penToggle.textContent = penOn ? "✎ 画笔开" : "✎ 画笔关";
+  els.penToggle.textContent = penOn ? t("pen_on") : t("pen_off");
   els.penToggle.classList.toggle("off", !penOn);
   els.drawSurface.style.cursor = penOn ? "crosshair" : "default";
   els.drawSurface.style.pointerEvents = penOn ? "auto" : "none";
@@ -422,10 +433,29 @@ document.querySelectorAll(".swatch").forEach((s) => s.addEventListener("click", 
   s.classList.add("active");
 }));
 
+// 开始前倒计时（源已获取，仅延迟启动 MediaRecorder，不影响用户手势）
+function runCountdown(sec) {
+  return new Promise((resolve) => {
+    els.countdown.classList.add("on");
+    let n = sec; els.countNum.textContent = n;
+    const id = setInterval(() => {
+      n--;
+      if (n <= 0) { clearInterval(id); els.countdown.classList.remove("on"); resolve(); }
+      else { els.countNum.textContent = n; els.countNum.style.animation = "none"; void els.countNum.offsetWidth; els.countNum.style.animation = ""; }
+    }, 1000);
+  });
+}
+async function beginWithCountdown(fps) {
+  const sec = Number(els.optCountdown.value) || 0;
+  if (sec > 0) await runCountdown(sec);
+  beginRecording(fps);
+}
+
 // ---- 开始录制 ----
 function beginRecording(fps) {
-  // 屏幕录制一律走 canvas，便于中途插入摄像头/画笔；仅录摄像头无画笔时直通
-  useCanvas = isCamOnly ? els.optDraw.checked : true;
+  // 有叠加需求（摄像头/区域/画笔/中途叠加）才走 canvas；纯屏幕直通最省资源
+  const wantOverlay = els.optCam.checked || els.optRegion.checked || els.optDraw.checked || els.optHotInsert.checked;
+  useCanvas = isCamOnly ? els.optDraw.checked : wantOverlay;
 
   // crop 兜底：metadata 未就绪/框选异常导致 0 尺寸会让 MediaRecorder 直接失败
   if (!isCamOnly) {
@@ -458,7 +488,7 @@ function beginRecording(fps) {
   els.preview.play().catch(() => {});
 
   if (els.optDraw.checked) {
-    penOn = true; els.penToggle.textContent = "✎ 画笔开"; els.penToggle.classList.remove("off");
+    penOn = true; els.penToggle.textContent = t("pen_on"); els.penToggle.classList.remove("off");
     els.drawSurface.style.pointerEvents = "auto"; els.drawSurface.style.cursor = "crosshair";
     setTimeout(enableDrawing, 60); // 等预览拿到布局尺寸
   }
@@ -475,13 +505,13 @@ function beginRecording(fps) {
   document.title = "● 录制中 · 极简录屏";
   document.querySelector(".bar").classList.add("rec");
   const tags = [recExt.toUpperCase()];
-  if (isCamOnly) tags.push("仅摄像头");
-  else { if (els.optRegion.checked) tags.push(`${crop.w}×${crop.h}`); if (camStream) tags.push("摄像头"); }
-  if (els.optDraw.checked) tags.push("画笔");
-  recStatusBase = "录制中 · " + tags.join(" · ");
+  if (isCamOnly) tags.push(t("tag_camonly"));
+  else { if (els.optRegion.checked) tags.push(`${crop.w}×${crop.h}`); if (camStream) tags.push(t("tag_cam")); }
+  if (els.optDraw.checked) tags.push(t("tag_draw"));
+  recStatusBase = t("st_rec") + " · " + tags.join(" · ");
   els.status.textContent = recStatusBase;
   els.start.disabled = true; els.pause.disabled = false; els.stop.disabled = false;
-  els.start.innerHTML = '<span class="dot"></span>录制中';
+  els.start.innerHTML = '<span class="dot"></span>' + t("recording");
 }
 
 function togglePause() {
@@ -489,11 +519,11 @@ function togglePause() {
   if (recorder.state === "recording") {
     recorder.pause(); pauseStart = Date.now(); clearInterval(timerId);
     if (drawWorker) drawWorker.postMessage({ cmd: "stop" });
-    els.pause.textContent = "继续"; els.status.textContent = "已暂停";
+    els.pause.textContent = t("btn_resume"); els.status.textContent = t("st_paused");
   } else if (recorder.state === "paused") {
     recorder.resume(); pausedMs += Date.now() - pauseStart; timerId = setInterval(tick, 250);
     if (drawWorker) drawWorker.postMessage({ cmd: "start", ms: Math.max(1, Math.round(1000 / Number(els.optFps.value))) });
-    els.pause.textContent = "暂停"; els.status.textContent = "录制中";
+    els.pause.textContent = t("btn_pause"); els.status.textContent = t("st_rec");
   }
 }
 
@@ -524,14 +554,14 @@ function finalize() {
   els.preview.srcObject = null; els.preview.src = lastUrl; els.preview.muted = false; els.preview.controls = true;
 
   const ts = new Date(), pad = (n) => String(n).padStart(2, "0");
-  const name = `录屏-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${recExt}`;
+  const name = `${t("filename_prefix")}-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${recExt}`;
   els.dlLink.href = lastUrl; els.dlLink.download = name;
   els.dlSize.textContent = `${(blob.size / 1024 / 1024).toFixed(1)} MB · ${els.timer.textContent} · ${recExt.toUpperCase()}`;
   els.dl.style.display = "flex";
 
-  els.status.textContent = "已完成";
+  els.status.textContent = t("st_done");
   els.start.disabled = false; els.pause.disabled = true; els.stop.disabled = true;
-  els.pause.textContent = "暂停"; els.start.innerHTML = "● 开始录制";
+  els.pause.textContent = t("btn_pause"); els.start.innerHTML = t("btn_start");
   ctx = null; canvas = null; screenVideo = camVideo = null;
   displayStream = micStream = camStream = mixedStream = null; recorder = null;
 }
@@ -547,15 +577,60 @@ els.discardRec.addEventListener("click", () => {
   els.preview.pause(); els.preview.removeAttribute("src"); els.preview.load();
   els.preview.controls = false; els.preview.style.display = "none";
   els.dl.style.display = "none";
-  els.status.textContent = "已丢弃";
+  els.status.textContent = t("st_discarded");
 });
+
+// 页内快捷键（仅当录制台标签页聚焦时有效）
+document.addEventListener("keydown", (e) => {
+  const tag = (e.target && e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "select" || tag === "textarea") return;
+  if (e.code === "Space") {
+    e.preventDefault();
+    if (recorder && recorder.state !== "inactive") stop();
+    else if (!regionSelecting && !els.start.disabled) start();
+  } else if (e.key === "p" || e.key === "P") {
+    if (recorder && recorder.state !== "inactive") togglePause();
+  }
+});
+
+// 全局快捷键（background 转发）：在任意标签页也能停止/暂停录制
+if (chrome.runtime && chrome.runtime.onMessage) {
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (!recorder || recorder.state === "inactive") return;
+    if (msg && msg.cmd === "stop") stop();
+    else if (msg && msg.cmd === "pause") togglePause();
+  });
+}
 
 window.addEventListener("beforeunload", (e) => {
   if (recorder && recorder.state !== "inactive") { e.preventDefault(); e.returnValue = ""; }
 });
 
-refreshOpts();
+// ---- 选项记忆（chrome.storage.local）----
+const PERSIST = ["optCamOnly", "optMic", "optSysAudio", "optCam", "optRegion", "optDraw",
+  "optHotInsert", "optCamPos", "optCamSize", "optCamShape", "optCountdown", "optFormat", "optFps", "optQuality"];
+function saveSettings() {
+  const data = {};
+  PERSIST.forEach((id) => { const el = els[id]; data[id] = el.type === "checkbox" ? el.checked : el.value; });
+  try { chrome.storage.local.set({ settings: data }); } catch (_) {}
+}
+function loadSettings() {
+  return new Promise((res) => {
+    try {
+      chrome.storage.local.get("settings", (r) => {
+        const s = r && r.settings;
+        if (s) PERSIST.forEach((id) => {
+          if (id in s) { const el = els[id]; if (el.type === "checkbox") el.checked = !!s[id]; else el.value = s[id]; }
+        });
+        res();
+      });
+    } catch (_) { res(); }
+  });
+}
+PERSIST.forEach((id) => els[id].addEventListener("change", saveSettings));
+
+loadSettings().then(refreshOpts);
 if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-  setError("当前浏览器不支持屏幕录制（需较新版 Chrome）。");
+  setError(t("err_no_displaymedia"));
   els.start.disabled = true;
 }

@@ -81,98 +81,121 @@
     #discardRec { background: #2c323d; padding: 10px 18px; }
     .download .size { color: #8b909c; font-size: 12px; }
     .err { color: #ff6b6b; font-size: 13px; margin-top: 10px; min-height: 18px; }
+    .keys { color: #5d6470; font-size: 12px; margin-top: 14px; }
+    /* 倒计时 */
+    #countdown { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      background: rgba(8,10,14,.72); z-index: 50; }
+    #countdown.on { display: flex; }
+    #countNum { font-size: 140px; font-weight: 800; color: #fff; text-shadow: 0 4px 30px rgba(0,0,0,.6); animation: pop .9s ease-out; }
+    @keyframes pop { from { transform: scale(.6); opacity: .2; } to { transform: scale(1); opacity: 1; } }
+    /* 语言切换 */
+    .langbar { position: absolute; top: 16px; right: 18px; }
+    .langbar button { background: #181b22; border: 1px solid #2c323d; padding: 6px 12px; font-size: 12px; color: #b9bfca; }
   </style>
 </head>
 <body>
+  <div class="langbar"><button id="langToggle">EN</button></div>
   <div class="wrap">
-    <h1>🎬 极简录屏 · 录制台</h1>
-    <p class="sub">屏幕 / 窗口 / 标签页录制，可叠摄像头、框选区域、画笔标注、仅录摄像头，导出 webm / mp4。</p>
+    <h1 data-i18n="app_title">🎬 极简录屏 · 录制台</h1>
+    <p class="sub" data-i18n="subtitle">屏幕 / 窗口 / 标签页录制，可叠摄像头、框选区域、画笔标注、仅录摄像头，导出 webm / mp4。</p>
 
     <div class="options">
       <div class="opt">
-        <label><input type="checkbox" id="optCamOnly" /> 仅录摄像头</label>
-        <div class="desc">不录屏幕，全画幅录摄像头（口播/讲解）。</div>
+        <label><input type="checkbox" id="optCamOnly" /> <span data-i18n="opt_camonly">仅录摄像头</span></label>
+        <div class="desc" data-i18n="opt_camonly_d">不录屏幕，全画幅录摄像头（口播/讲解）。</div>
       </div>
       <div class="opt">
-        <label><input type="checkbox" id="optMic" /> 录麦克风</label>
-        <div class="desc">叠加你的人声讲解。</div>
+        <label><input type="checkbox" id="optMic" /> <span data-i18n="opt_mic">录麦克风</span></label>
+        <div class="desc" data-i18n="opt_mic_d">叠加你的人声讲解。</div>
       </div>
       <div class="opt" id="sysAudioWrap">
-        <label><input type="checkbox" id="optSysAudio" checked /> 录系统/标签页声音</label>
-        <div class="desc">选择器里记得勾「分享音频」。</div>
+        <label><input type="checkbox" id="optSysAudio" checked /> <span data-i18n="opt_sysaudio">录系统/标签页声音</span></label>
+        <div class="desc" data-i18n="opt_sysaudio_d">选择器里记得勾「分享音频」。</div>
       </div>
       <div class="opt" id="camWrap">
-        <label><input type="checkbox" id="optCam" /> 摄像头画中画</label>
-        <div class="desc">露脸讲解，叠在角落。</div>
+        <label><input type="checkbox" id="optCam" /> <span data-i18n="opt_cam">摄像头画中画</span></label>
+        <div class="desc" data-i18n="opt_cam_d">露脸讲解，叠在角落。</div>
       </div>
       <div class="opt" id="camPosWrap" hidden>
-        <label for="optCamPos">摄像头位置</label>
+        <label for="optCamPos" data-i18n="lbl_campos">摄像头位置</label>
         <select id="optCamPos">
-          <option value="br" selected>右下角</option>
-          <option value="bl">左下角</option>
-          <option value="tr">右上角</option>
-          <option value="tl">左上角</option>
+          <option value="br" selected data-i18n="campos_br">右下角</option>
+          <option value="bl" data-i18n="campos_bl">左下角</option>
+          <option value="tr" data-i18n="campos_tr">右上角</option>
+          <option value="tl" data-i18n="campos_tl">左上角</option>
         </select>
       </div>
       <div class="opt" id="camSizeWrap" hidden>
-        <label for="optCamSize">摄像头大小</label>
+        <label for="optCamSize" data-i18n="lbl_camsize">摄像头大小</label>
         <select id="optCamSize">
-          <option value="0.16">小</option>
-          <option value="0.24" selected>中</option>
-          <option value="0.34">大</option>
+          <option value="0.16" data-i18n="size_s">小</option>
+          <option value="0.24" selected data-i18n="size_m">中</option>
+          <option value="0.34" data-i18n="size_l">大</option>
         </select>
       </div>
       <div class="opt" id="camShapeWrap" hidden>
-        <label for="optCamShape">摄像头形状</label>
+        <label for="optCamShape" data-i18n="lbl_camshape">摄像头形状</label>
         <select id="optCamShape">
-          <option value="round" selected>圆角矩形</option>
-          <option value="rect">矩形</option>
-          <option value="circle">圆形</option>
+          <option value="round" selected data-i18n="shape_round">圆角矩形</option>
+          <option value="rect" data-i18n="shape_rect">矩形</option>
+          <option value="circle" data-i18n="shape_circle">圆形</option>
         </select>
       </div>
       <div class="opt" id="regionWrap">
-        <label><input type="checkbox" id="optRegion" /> 区域录制</label>
-        <div class="desc">先框选再录，只录一块。</div>
+        <label><input type="checkbox" id="optRegion" /> <span data-i18n="opt_region">区域录制</span></label>
+        <div class="desc" data-i18n="opt_region_d">先框选再录，只录一块。</div>
       </div>
       <div class="opt">
-        <label><input type="checkbox" id="optDraw" /> 画笔标注</label>
-        <div class="desc">录制时在预览上画，烧进录像。</div>
+        <label><input type="checkbox" id="optDraw" /> <span data-i18n="opt_draw">画笔标注</span></label>
+        <div class="desc" data-i18n="opt_draw_d">录制时在预览上画，烧进录像。</div>
+      </div>
+      <div class="opt" id="hotInsertWrap">
+        <label><input type="checkbox" id="optHotInsert" /> <span data-i18n="opt_hotinsert">录制中可加摄像头/画笔</span></label>
+        <div class="desc" data-i18n="opt_hotinsert_d">纯屏幕录制默认直通最省资源；勾上才允许中途叠加。</div>
       </div>
       <div class="opt">
-        <label for="optFormat">导出格式</label>
+        <label for="optCountdown" data-i18n="lbl_countdown">开始倒计时</label>
+        <select id="optCountdown">
+          <option value="0" selected data-i18n="cd_off">不倒计时</option>
+          <option value="3" data-i18n="cd_3">3 秒</option>
+          <option value="5" data-i18n="cd_5">5 秒</option>
+        </select>
+      </div>
+      <div class="opt">
+        <label for="optFormat" data-i18n="lbl_format">导出格式</label>
         <select id="optFormat">
-          <option value="webm" selected>webm（兼容性最好）</option>
-          <option value="mp4">mp4（需较新 Chrome）</option>
+          <option value="webm" selected data-i18n="fmt_webm">webm（兼容性最好）</option>
+          <option value="mp4" data-i18n="fmt_mp4">mp4（需较新 Chrome）</option>
         </select>
       </div>
       <div class="opt">
-        <label for="optFps">帧率</label>
+        <label for="optFps" data-i18n="lbl_fps">帧率</label>
         <select id="optFps">
-          <option value="30">30 fps（默认）</option>
-          <option value="60">60 fps（更顺）</option>
-          <option value="15">15 fps（省空间）</option>
+          <option value="30" data-i18n="fps_30">30 fps（默认）</option>
+          <option value="60" data-i18n="fps_60">60 fps（更顺）</option>
+          <option value="15" data-i18n="fps_15">15 fps（省空间）</option>
         </select>
       </div>
       <div class="opt">
-        <label for="optQuality">画质码率</label>
+        <label for="optQuality" data-i18n="lbl_quality">画质码率</label>
         <select id="optQuality">
-          <option value="2500000">标清 ~2.5 Mbps</option>
-          <option value="5000000" selected>高清 ~5 Mbps</option>
-          <option value="8000000">超清 ~8 Mbps</option>
+          <option value="2500000" data-i18n="q_sd">标清 ~2.5 Mbps</option>
+          <option value="5000000" selected data-i18n="q_hd">高清 ~5 Mbps</option>
+          <option value="8000000" data-i18n="q_uhd">超清 ~8 Mbps</option>
         </select>
       </div>
     </div>
 
     <div class="bar">
-      <button id="start">● 开始录制</button>
-      <button id="pause" disabled>暂停</button>
-      <button id="stop" disabled>停止</button>
+      <button id="start" data-i18n="btn_start">● 开始录制</button>
+      <button id="pause" disabled data-i18n="btn_pause">暂停</button>
+      <button id="stop" disabled data-i18n="btn_stop">停止</button>
       <span class="timer" id="timer">00:00</span>
       <span class="status" id="status"></span>
     </div>
 
     <div class="drawTools" id="drawTools">
-      <button class="penBtn mini" id="penToggle">✎ 画笔开</button>
+      <button class="penBtn mini" id="penToggle" data-i18n="pen_on">✎ 画笔开</button>
       <span style="display:flex;gap:6px">
         <button class="swatch active" data-color="#ff3b30" style="background:#ff3b30"></button>
         <button class="swatch" data-color="#ffcc00" style="background:#ffcc00"></button>
@@ -181,15 +204,15 @@
         <button class="swatch" data-color="#ffffff" style="background:#ffffff"></button>
       </span>
       <input type="range" class="sz" id="penSize" min="2" max="20" value="4" />
-      <button class="mini" id="undoStroke">↶ 撤销</button>
-      <button class="mini" id="clearStrokes">🗑 清除</button>
+      <button class="mini" id="undoStroke" data-i18n="undo">↶ 撤销</button>
+      <button class="mini" id="clearStrokes" data-i18n="clear">🗑 清除</button>
     </div>
 
     <div class="selHint" id="selHint">
-      <span class="tip">回到本页，在下方预览里按住拖拽框选区域；不选则录整个画面。</span>
-      <button id="confirmRegion">✔ 确认并开始</button>
-      <button id="fullRegion">录整个画面</button>
-      <button id="cancelRegion">✖ 取消</button>
+      <span class="tip" data-i18n="selhint_tip">回到本页，在下方预览里按住拖拽框选区域；不选则录整个画面。</span>
+      <button id="confirmRegion" data-i18n="confirm_region">✔ 确认并开始</button>
+      <button id="fullRegion" data-i18n="full_region">录整个画面</button>
+      <button id="cancelRegion" data-i18n="cancel">✖ 取消</button>
     </div>
 
     <div class="stage" id="stage">
@@ -200,15 +223,19 @@
     </div>
 
     <div class="download" id="dl">
-      <a id="dlLink" download>⬇ 下载录像</a>
-      <button id="discardRec">✖ 丢弃</button>
+      <a id="dlLink" download data-i18n="dl_link">⬇ 下载录像</a>
+      <button id="discardRec" data-i18n="discard">✖ 丢弃</button>
       <span class="size" id="dlSize"></span>
-      <span class="status">已生成预览，可在上方播放器回放。</span>
+      <span class="status" data-i18n="dl_hint">已生成预览，可在上方播放器回放。</span>
     </div>
 
     <div class="err" id="err"></div>
+    <div class="keys" id="keys" data-i18n="keys_hint">快捷键：空格 开始/停止 · P 暂停/继续 · Ctrl/⌘+Shift+S 在任意标签页停止</div>
   </div>
 
+  <div id="countdown"><span id="countNum"></span></div>
+
+  <script src="i18n.js"></script>
   <script src="recorder.js"></script>
 </body>
 </html>

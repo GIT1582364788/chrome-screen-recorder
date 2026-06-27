@@ -3,7 +3,18 @@
   "name": "极简录屏",
   "version": "1.0.0",
   "description": "一键录制屏幕 / 窗口 / 标签页，支持系统声音与麦克风，录完即时回放并下载 webm。",
-  "permissions": ["tabs"],
+  "permissions": ["tabs", "storage"],
+  "background": { "service_worker": "background.js" },
+  "commands": {
+    "stop-recording": {
+      "suggested_key": { "default": "Ctrl+Shift+S", "mac": "Command+Shift+S" },
+      "description": "停止录制"
+    },
+    "pause-recording": {
+      "suggested_key": { "default": "Ctrl+Shift+U", "mac": "Command+Shift+U" },
+      "description": "暂停/继续录制"
+    }
+  },
   "action": {
     "default_title": "极简录屏",
     "default_popup": "popup.html"
