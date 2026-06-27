@@ -31,15 +31,29 @@ let dsCtx = null;                      // drawSurface 2D 上下文
 
 let recMime = "video/webm", recExt = "webm";
 let lastUrl = null, timerId = null, startedAt = 0, pausedMs = 0, pauseStart = 0;
+let recordedBytes = 0, warnedBig = false, recStatusBase = "";
 
 const setError = (m) => { els.err.textContent = m || ""; };
+// 编码器（尤其 H.264/mp4）要求宽高为偶数，且至少 2
+const even = (n) => Math.max(2, Math.floor(n) & ~1);
 function fmt(ms) {
   const s = Math.floor(ms / 1000);
   const m = String(Math.floor(s / 60)).padStart(2, "0"), ss = String(s % 60).padStart(2, "0");
   const h = Math.floor(s / 3600);
   return h > 0 ? `${String(h).padStart(2, "0")}:${m}:${ss}` : `${m}:${ss}`;
 }
-const tick = () => { els.timer.textContent = fmt(Date.now() - startedAt - pausedMs); };
+function tick() {
+  els.timer.textContent = fmt(Date.now() - startedAt - pausedMs);
+  if (recStatusBase) {
+    const mb = recordedBytes / 1024 / 1024;
+    els.status.textContent = recStatusBase + ` · ${mb < 1024 ? mb.toFixed(0) + "MB" : (mb / 1024).toFixed(1) + "GB"}`;
+    // 录像全在内存里，超大/超长时一次性提醒，避免页面崩溃
+    if (!warnedBig && (recordedBytes > 3 * 1024 ** 3 || Date.now() - startedAt - pausedMs > 60 * 60 * 1000)) {
+      warnedBig = true;
+      setError("录制已很大（录像暂存在内存中），建议尽快停止保存，超长录制可分多段。");
+    }
+  }
+}
 
 // 选项可见性联动
 function refreshOpts() {
@@ -200,6 +214,7 @@ async function start() {
   els.dl.style.display = "none";
   if (lastUrl) { URL.revokeObjectURL(lastUrl); lastUrl = null; }
   chunks = []; strokes = []; curStroke = null;
+  recordedBytes = 0; warnedBig = false; recStatusBase = "";
   const fps = Number(els.optFps.value);
   isCamOnly = els.optCamOnly.checked;
 
@@ -412,10 +427,20 @@ function beginRecording(fps) {
   // 屏幕录制一律走 canvas，便于中途插入摄像头/画笔；仅录摄像头无画笔时直通
   useCanvas = isCamOnly ? els.optDraw.checked : true;
 
+  // crop 兜底：metadata 未就绪/框选异常导致 0 尺寸会让 MediaRecorder 直接失败
+  if (!isCamOnly) {
+    const vw = screenVideo.videoWidth || 1920, vh = screenVideo.videoHeight || 1080;
+    if (!crop || crop.w < 2 || crop.h < 2) crop = { x: 0, y: 0, w: vw, h: vh };
+    crop.x = Math.max(0, Math.min(crop.x, vw - 2));
+    crop.y = Math.max(0, Math.min(crop.y, vh - 2));
+    crop.w = Math.min(crop.w, vw - crop.x);
+    crop.h = Math.min(crop.h, vh - crop.y);
+  }
+
   if (useCanvas) {
     canvas = document.createElement("canvas");
-    if (isCamOnly) { canvas.width = camVideo.videoWidth || 1280; canvas.height = camVideo.videoHeight || 720; }
-    else { canvas.width = crop.w; canvas.height = crop.h; }
+    if (isCamOnly) { canvas.width = even(camVideo.videoWidth || 1280); canvas.height = even(camVideo.videoHeight || 720); }
+    else { canvas.width = even(crop.w); canvas.height = even(crop.h); }
     ctx = canvas.getContext("2d", { alpha: false });
     drawFrame();
     drawWorker = makeDrawWorker(fps);
@@ -441,7 +466,7 @@ function beginRecording(fps) {
   const picked = pickMime(els.optFormat.value);
   recMime = picked.mime; recExt = picked.ext;
   recorder = new MediaRecorder(mixedStream, { mimeType: recMime, videoBitsPerSecond: Number(els.optQuality.value) });
-  recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.ondataavailable = (e) => { if (e.data && e.data.size) { chunks.push(e.data); recordedBytes += e.data.size; } };
   recorder.onstop = finalize;
   recorder.start(1000);
 
@@ -453,7 +478,8 @@ function beginRecording(fps) {
   if (isCamOnly) tags.push("仅摄像头");
   else { if (els.optRegion.checked) tags.push(`${crop.w}×${crop.h}`); if (camStream) tags.push("摄像头"); }
   if (els.optDraw.checked) tags.push("画笔");
-  els.status.textContent = "录制中 · " + tags.join(" · ");
+  recStatusBase = "录制中 · " + tags.join(" · ");
+  els.status.textContent = recStatusBase;
   els.start.disabled = true; els.pause.disabled = false; els.stop.disabled = false;
   els.start.innerHTML = '<span class="dot"></span>录制中';
 }
@@ -474,19 +500,20 @@ function togglePause() {
 const stop = () => { if (recorder && recorder.state !== "inactive") recorder.stop(); };
 
 function stopStreams() {
-  [displayStream, micStream, camStream].forEach((s) => s && s.getTracks().forEach((t) => t.stop()));
+  [displayStream, micStream, camStream, mixedStream].forEach((s) => s && s.getTracks().forEach((t) => t.stop()));
   if (audioCtx) { audioCtx.close().catch(() => {}); audioCtx = null; }
   if (drawWorker) { drawWorker.postMessage({ cmd: "stop" }); drawWorker.terminate(); drawWorker = null; }
 }
 function cleanup() {
   stopStreams();
   ctx = null; canvas = null; screenVideo = camVideo = null;
-  displayStream = micStream = camStream = null;
+  displayStream = micStream = camStream = mixedStream = null;
   els.start.disabled = false;
 }
 
 function finalize() {
   clearInterval(timerId);
+  recStatusBase = "";
   stopStreams();
   disableDrawing();
   document.querySelector(".bar").classList.remove("rec");
@@ -506,7 +533,7 @@ function finalize() {
   els.start.disabled = false; els.pause.disabled = true; els.stop.disabled = true;
   els.pause.textContent = "暂停"; els.start.innerHTML = "● 开始录制";
   ctx = null; canvas = null; screenVideo = camVideo = null;
-  displayStream = micStream = camStream = null; recorder = null;
+  displayStream = micStream = camStream = mixedStream = null; recorder = null;
 }
 
 els.start.addEventListener("click", start);
