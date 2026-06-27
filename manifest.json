@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "极简录屏",
+  "name": "极简录屏 Screen Recorder",
   "version": "1.0.0",
-  "description": "一键录制屏幕 / 窗口 / 标签页，支持系统声音与麦克风，录完即时回放并下载 webm。",
+  "description": "本地零依赖录屏：屏幕/窗口/标签页 + 系统声音/麦克风，摄像头画中画、区域、画笔、仅录摄像头，导出 webm/mp4。Local screen recorder.",
   "permissions": ["tabs", "storage"],
   "background": { "service_worker": "background.js" },
   "commands": {
