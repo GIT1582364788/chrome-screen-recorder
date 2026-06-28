@@ -60,15 +60,9 @@
 - 录像在停止前**暂存在内存**，超长/超大录制（>3GB 或 >60min）会提示，建议分多段。
 - 旧 Chrome 不支持录 mp4 时回退 webm，可用 ffmpeg 转：`ffmpeg -i in.webm out.mp4`。
 
-## 发布到 GitHub / 商店
+## 贡献 / 二次开发
 
-```bash
-# 作为独立仓库发布
-cd screen-recorder
-git init && git add . && git commit -m "init: simple screen recorder"
-# 在 GitHub 新建空仓库后：
-git remote add origin <你的仓库地址> && git push -u origin main
-```
+纯静态扩展，改完代码在 `chrome://extensions` 点扩展卡片的刷新即可生效，无需构建。欢迎 issue / PR。
 
 上架 Chrome 应用商店（可选）：需一次性 5 美元开发者注册费 + 审核；打包时把本目录压成 zip 上传即可。不上架也能用「加载已解压的扩展程序」。
 
