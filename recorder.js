@@ -465,6 +465,31 @@ els.penToggle.addEventListener("click", () => {
   els.drawSurface.style.pointerEvents = penOn ? "auto" : "none";
 });
 els.penSize.addEventListener("input", () => { penWidth = Number(els.penSize.value); });
+
+// 画笔中途热插拔（与摄像头一致）：录制中勾上当场启用画布/工具条，取消则关闭
+function onDrawToggle() {
+  if (!recorder || recorder.state === "inactive") return; // 空闲时不动 UI，开始录制时由 beginRecording 处理
+  if (els.optDraw.checked) {
+    if (!useCanvas || !canvas) { // 直通录制无 canvas，无法中途加画笔
+      setError(t("err_no_hotinsert"));
+      els.optDraw.checked = false; return;
+    }
+    if (!strokeCache) {
+      strokeCache = document.createElement("canvas");
+      strokeCache.width = canvas.width; strokeCache.height = canvas.height;
+      scCtx = strokeCache.getContext("2d");
+      rebuildStrokeCache();
+    }
+    penOn = true;
+    els.penToggle.textContent = t("pen_on"); els.penToggle.classList.remove("off");
+    els.drawSurface.style.pointerEvents = "auto"; els.drawSurface.style.cursor = "crosshair";
+    enableDrawing();
+  } else {
+    disableDrawing();
+  }
+}
+els.optDraw.addEventListener("change", onDrawToggle);
+
 els.undoStroke.addEventListener("click", () => { strokes.pop(); rebuildStrokeCache(); repaintSurface(); });
 els.clearStrokes.addEventListener("click", () => { strokes = []; rebuildStrokeCache(); repaintSurface(); });
 document.querySelectorAll(".swatch").forEach((s) => s.addEventListener("click", () => {
