@@ -1,5 +1,9 @@
 # 极简录屏 · Simple Screen Recorder（Chrome 扩展）
 
+<p align="center">
+  <img src="docs/hero.png" alt="Simple Screen Recorder — 录制台界面" width="820">
+</p>
+
 [English](#english) ·
 一款**纯本地、零依赖、不联网**的 Chrome 屏幕录制扩展。一键录制 **整个屏幕 / 应用窗口 / 浏览器标签页**，可同时录系统声音与麦克风，叠加**摄像头画中画**（位置/大小/形状可调）、**框选区域**录制、**画笔标注**，也支持**仅录摄像头**口播，导出 `webm` 或 `mp4`，录完即时回放并下载。界面中英双语。
 
